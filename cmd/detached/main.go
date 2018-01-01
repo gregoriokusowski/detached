@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gregoriokusowski/detached"
+	"github.com/gregoriokusowski/detached/aws"
 )
 
 var longDesc = `detached is a tool to create, manage and use remote development environments.
@@ -22,7 +23,21 @@ The commands are:
 Use "detached help [command]" for more information about a command.`
 
 func main() {
-	detached.Bootstrap()
-	fmt.Println(os.Args)
-	fmt.Println(longDesc)
+	if len(os.Args) > 1 {
+		command := os.Args[1]
+		i := instance()
+		switch command {
+		case "bootstrap":
+			err := i.Bootstrap()
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}
+	} else {
+		fmt.Println(longDesc)
+	}
+}
+
+func instance() detached.Detachable {
+	return aws.New()
 }
