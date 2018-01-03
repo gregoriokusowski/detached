@@ -28,7 +28,10 @@ func main() {
 	ctx := context.TODO()
 	if len(os.Args) > 1 {
 		command := os.Args[1]
-		i := instance()
+		i, err := instance(ctx)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 		switch command {
 		case "bootstrap":
 			err := i.Bootstrap(ctx)
@@ -41,6 +44,6 @@ func main() {
 	}
 }
 
-func instance() detached.Detachable {
-	return aws.New()
+func instance(ctx context.Context) (detached.Detachable, error) {
+	return aws.New(ctx)
 }
