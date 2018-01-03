@@ -1,7 +1,9 @@
 package detached
 
+import "context"
+
 type Detachable interface {
-	Bootstrap() error
-	Status() error
-	Attach() error
+	Bootstrap(ctx context.Context) error
+	Status(ctx context.Context) error
+	Attach(ctx context.Context) error
 }

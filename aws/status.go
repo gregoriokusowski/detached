@@ -1,5 +1,7 @@
 package aws
 
-func (provider *Aws) Status() error {
+import "context"
+
+func (provider *Aws) Status(context context.Context) error {
 	return nil
 }

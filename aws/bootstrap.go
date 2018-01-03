@@ -1,23 +1,35 @@
 package aws
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-func (provider *Aws) Bootstrap() error {
-	s := session.New()
-	svc := ec2.New(s)
+type VolumeConfig struct {
+	Size int64
+	Type string
+	ID   string
+}
+
+func (provider *Aws) Bootstrap(ctx context.Context) error {
+
+	// imageName := "amzn-ami-hvm-2017.09.1.20171120-x86_64-ebs"
+	// imageID := "ami-7528ab1a"
+
+	var size int64 = 10
+	volumeType := "zgp2"
+
 	input := &ec2.CreateVolumeInput{
-		AvailabilityZone: aws.String("us-east-1a"),
-		Size:             aws.Int64(10),
-		VolumeType:       aws.String("gp2"),
-		Encrypted:        aws.Bool(false),
+		AvailabilityZone: aws.String(zone),
+		Size:             aws.Int64(size),
+		VolumeType:       aws.String(volumeType),
+		Encrypted:        aws.Bool(true),
 		TagSpecifications: []*ec2.TagSpecification{
 			&ec2.TagSpecification{
+				ResourceType: aws.String("volume"),
 				Tags: []*ec2.Tag{
 					&ec2.Tag{
 						Key:   aws.String("source"),
@@ -32,6 +44,8 @@ func (provider *Aws) Bootstrap() error {
 	if err != nil {
 		return err
 	}
+
+	volumeId := *result.VolumeId
 
 	fmt.Println(result)
 	return nil

@@ -1,11 +1,12 @@
 package aws
 
 import (
+	"context"
 	"os"
 	"os/exec"
 )
 
-func (provider *Aws) Attach() error {
+func (provider *Aws) Attach(context context.Context) error {
 	cmd := exec.Command("tmux", "a")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

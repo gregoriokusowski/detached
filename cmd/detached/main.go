@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"context"
+
 	"github.com/gregoriokusowski/detached"
 	"github.com/gregoriokusowski/detached/aws"
 )
@@ -23,12 +25,13 @@ The commands are:
 Use "detached help [command]" for more information about a command.`
 
 func main() {
+	ctx := context.TODO()
 	if len(os.Args) > 1 {
 		command := os.Args[1]
 		i := instance()
 		switch command {
 		case "bootstrap":
-			err := i.Bootstrap()
+			err := i.Bootstrap(ctx)
 			if err != nil {
 				fmt.Println(err.Error())
 			}
