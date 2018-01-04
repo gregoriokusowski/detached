@@ -2,21 +2,17 @@ package aws
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gregoriokusowski/detached"
+	"github.com/gregoriokusowski/detached/config"
 	survey "gopkg.in/AlecAivazis/survey.v1"
 )
-
-const CONFIG_FOLDER = "~/.detached"
-const CONFIG_PATH = "~/.detached/default.json"
 
 func New(ctx context.Context) (detached.Detachable, error) {
 	return load(ctx)
@@ -29,6 +25,24 @@ type Aws struct {
 }
 
 func load(ctx context.Context) (*Aws, error) {
+	var instance *Aws
+	if config.Exists() {
+		err := config.Load(*instance)
+		if err != nil {
+			return nil, err
+		}
+		return instance, nil
+	}
+	instance, err := buildInstance(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = config.Save(instance)
+	if err != nil {
+		return nil, err
+	}
+	return instance, nil
 }
 
 func buildInstance(ctx context.Context) (*Aws, error) {
@@ -43,15 +57,6 @@ func buildInstance(ctx context.Context) (*Aws, error) {
 		Region:   region,
 		Zone:     zone,
 	}, nil
-}
-
-func persist(instance *Aws) error {
-	bytes, err := json.Marshal(instance)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(CONFIG_PATH, bytes, 0644)
-
 }
 
 func getRegion() string {

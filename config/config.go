@@ -20,34 +20,37 @@ func Exists() bool {
 	return err == nil
 }
 
-func Save(c struct{}) error {
+func Save(instance interface{}) error {
+	if _, err := os.Stat(absConfigFolder()); os.IsNotExist(err) {
+		err = os.MkdirAll(absConfigFolder(), 0755)
+		if err != nil {
+			return fmt.Errorf("Failed to create ~/.detached folder: %s", err)
+		}
+	}
+	bytes, err := json.Marshal(instance)
+	if err != nil {
+		return fmt.Errorf("Failed to convert config to json: %s", err)
+	}
 
+	err = ioutil.WriteFile(absConfigPath(), bytes, 0755)
+	if err != nil {
+		return fmt.Errorf("Failed to persist config: %s", err)
+	}
+	return nil
 }
 
-func Load(c *struct{}) error {
+func Load(c interface{}) error {
 	raw, err := ioutil.ReadFile(absConfigPath())
 	if err != nil {
-		if os.IsNotExist(err) {
-			err := os.Mkdir(CONFIG_FOLDER, 0644)
-			if err != nil {
-				return nil, err
-			}
-			instance, err := buildInstance(ctx)
-			if err != nil {
-				return nil, err
-			}
-			err = persist(instance)
-			if err != nil {
-				return nil, err
-			}
-			return instance, nil
-		}
-		fmt.Printf("%+w", err)
-		return nil, err
+		return fmt.Errorf("Failed to load config: %s", err)
 	}
-	var aws Aws
-	json.Unmarshal(raw, &aws)
-	return &aws, nil
+
+	err = json.Unmarshal(raw, &c)
+	if err != nil {
+		return fmt.Errorf("Failed to parse config: %s", err)
+	}
+
+	return nil
 }
 
 func absConfigFolder() string {
@@ -59,5 +62,5 @@ func absConfigFolder() string {
 }
 
 func absConfigPath() string {
-	return filepath.Join(configFolder(), CONFIG_FILE)
+	return filepath.Join(absConfigFolder(), CONFIG_FILE)
 }
