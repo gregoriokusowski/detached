@@ -3,25 +3,52 @@ package aws
 import (
 	"context"
 	"fmt"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-type VolumeConfig struct {
-	Size int64
-	Type string
-	ID   string
+const (
+	USERDATA = `
+#! /sh...
+sudo adduser USERNAME --disabled-password
+sudo su - USERNAME
+echo 'BASE64PUBLICKEY' > ~/.ssh/authorized_keys
+`
+)
+
+type Config struct {
 }
 
 func (provider *Aws) Bootstrap(ctx context.Context) error {
 
-	// imageName := "amzn-ami-hvm-2017.09.1.20171120-x86_64-ebs"
-	// imageID := "ami-7528ab1a"
-	if provider != nil {
-		fmt.Println(provider)
-		return nil
+	securityGroupId := ""
+
+	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
+	// maybe create current user 	user, _ := user.Current()
+	initScript := ""
+
+	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+	reservation, err := svc.RunInstances(&ec2.RunInstancesInput{
+		ImageId:          imageId,
+		InstanceType:     instanceType,
+		MaxCount:         1,
+		MinCount:         1,
+		SecurityGroupIds: []*string{securityGroupId},
+		UserData:         initScript,
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to launch EC2 instance: %s", err.Error())
 	}
 
-	// var size int64 = 10
-	// volumeType := "zgp2"
+	instanceId := reservation.Instances[0].InstanceId
+	publicIp := reservation.Instances[0].PublicIpAddress
+	ebs := reservation.Instances[0].BlockDeviceMappings[0].Ebs
+	ebs.SetDeleteOnTermination(false)
+
+	var size int64 = 10
+	volumeType := "zgp2"
 
 	// input := &ec2.CreateVolumeInput{
 	// 	// AvailabilityZone: aws.String(zone),

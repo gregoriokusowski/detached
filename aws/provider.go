@@ -19,9 +19,22 @@ func New(ctx context.Context) (detached.Detachable, error) {
 }
 
 type Aws struct {
-	Provider string `json:"provider"`
-	Region   string `json:"region"`
-	Zone     string `json:"zone"`
+	Provider     string `json:"provider"`
+	Region       string `json:"region"`
+	Zone         string `json:"zone"`
+	ImageId      string `json:"imageId`
+	InstanceType string `json:"instanceType"`
+}
+
+func Default() *detached.Detachable {
+	return &Aws{
+		Provider:     "aws",
+		Region:       "eu-central-1",
+		Zone:         "eu-central-1-a",
+		ImageId:      "ami-7528ab1a",
+		InstanceType: "t2.micro",
+		Username:     "kusowski",
+	}
 }
 
 func load(ctx context.Context) (*Aws, error) {
