@@ -23,6 +23,17 @@ type Config struct {
 }
 
 func (provider *Aws) Bootstrap(ctx context.Context) error {
+	csvc := cloudformation.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+
+	fmt.Println("Creating detached security group")
+	createStackOutput, err := csvc.CreateStack(&cloudformation.CreateStackInput{
+		StackName:    "detached-security-group",
+		TemplateBody: securityGroupTemplateBodyPath(),
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to create security group: %s", err.Error())
+	}
+
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 
 	fmt.Println("Copying image with encryption to create an Encrypted EBS Volume")
@@ -39,27 +50,13 @@ func (provider *Aws) Bootstrap(ctx context.Context) error {
 	generatedImageId := copyImageOutput.ImageId
 	fmt.Printf("Image %s created\n", generatedImageId)
 
-	csvc := cloudformation.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-
-	fmt.Println("Creating detached security group")
-	createStackOutput, err := csvc.CreateStack(&cloudformation.CreateStackInput{
-		StackName:    "detached-security-group",
-		TemplateBody: securityGroupTemplateBodyPath(),
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to create security group: %s", err.Error())
-	}
-
-	securityGroupId := securityGroupOutput.GroupId
-	fmt.Printf("Security group %s created\n", securityGroupId)
-
 	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
 	// maybe create current user 	user, _ := user.Current()
 	initScript := ""
 
 	fmt.Println("Creating dummy instance to spin up volume")
 	reservation, err := svc.RunInstances(&ec2.RunInstancesInput{
-		ImageId:          imageId,
+		ImageId:          copyImageOutput.ImageId,
 		InstanceType:     instanceType,
 		MaxCount:         1,
 		MinCount:         1,
@@ -71,11 +68,7 @@ func (provider *Aws) Bootstrap(ctx context.Context) error {
 	}
 
 	instanceId := reservation.Instances[0].InstanceId
-	// publicIp := reservation.Instances[0].PublicIpAddress
-	// ebs := reservation.Instances[0].BlockDeviceMappings[0].Ebs
-	// ebs.SetDeleteOnTermination(false)
-
-	svc.ModifyVolume(&ec2.ModifyVolumeInput{})
+	ebs := reservation.Instances[0].BlockDeviceMappings[0].Ebs
 
 	fmt.Println("Detaching volume from instance")
 	volumeAttachment, err := svc.DetachVolume(&ec2.DetachVolumeInput{
@@ -86,35 +79,26 @@ func (provider *Aws) Bootstrap(ctx context.Context) error {
 		return fmt.Errorf("Failed to detach volume: %s", err.Error())
 	}
 
-	var size int64 = 10
-	volumeType := "zgp2"
+	fmt.Println("Terminating dummy instance")
+	_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
+		InstanceIds: []*string{instanceId},
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to terminate dummy instance: %s", err.Error())
+	}
 
-	// input := &ec2.CreateVolumeInput{
-	// 	// AvailabilityZone: aws.String(zone),
-	// 	Size:       aws.Int64(size),
-	// 	VolumeType: aws.String(volumeType),
-	// 	Encrypted:  aws.Bool(true),
-	// 	TagSpecifications: []*ec2.TagSpecification{
-	// 		&ec2.TagSpecification{
-	// 			ResourceType: aws.String("volume"),
-	// 			Tags: []*ec2.Tag{
-	// 				&ec2.Tag{
-	// 					Key:   aws.String("source"),
-	// 					Value: aws.String("detached"),
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// }
+	// publicIp := reservation.Instances[0].PublicIpAddress
+	// ebs.SetDeleteOnTermination(false)
 
-	// result, err := svc.CreateVolume(input)
-	// if err != nil {
-	// 	return err
-	// }
+	fmt.Println("Modifying volume")
+	_, err = svc.ModifyVolume(&ec2.ModifyVolumeInput{
+		VolumeId:   ebs.VolumeId,
+		VolumeType: "gp2",
+		Size:       10,
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to modify volume: %s", err.Error())
+	}
 
-	// volumeId := *result.VolumeId
-
-	// fmt.Println(volumeId)
-	// fmt.Println(result)
 	return nil
 }
