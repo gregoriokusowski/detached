@@ -24,6 +24,8 @@ type Aws struct {
 	Zone         string `json:"zone"`
 	ImageId      string `json:"imageId`
 	InstanceType string `json:"instanceType"`
+	Username     string `json:"username"`
+	SshPort      int    `json:"sshPort"`
 }
 
 func Default() *detached.Detachable {
@@ -34,6 +36,7 @@ func Default() *detached.Detachable {
 		ImageId:      "ami-7528ab1a",
 		InstanceType: "t2.micro",
 		Username:     "kusowski",
+		SshPort:      22,
 	}
 }
 
