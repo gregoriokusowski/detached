@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -22,14 +24,12 @@ const (
 func (provider *Aws) GetSecurityGroupId(ctx context.Context) (string, error) {
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 	describeSecurityGroupsOutput, err := svc.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{
-		Filters: []*ec2.Filter{
-			&ec2.Filter{
-				Name:   aws.String("group-name"),
-				Values: []*string{aws.String("detached-security-group")},
-			},
-		},
+		GroupNames: []*string{aws.String("detached-security-group")},
 	})
 	if err != nil {
+		if strings.ContainsAny(err.Error(), "InvalidGroup.NotFound") {
+			return "", SecurityGroupNotFound
+		}
 		return "", fmt.Errorf("Failed to get security groups: %s", err.Error())
 	}
 
@@ -41,24 +41,34 @@ func (provider *Aws) GetSecurityGroupId(ctx context.Context) (string, error) {
 
 func (provider *Aws) UpsertSecurityGroup(ctx context.Context) error {
 	csvc := cloudformation.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-	_, err := provider.GetSecurityGroupId(ctx)
+
+	template, err := ioutil.ReadFile(securityGroupTemplateBodyPath())
+	if err != nil {
+		return err
+	}
+
+	_, err = provider.GetSecurityGroupId(ctx)
+
 	if err == SecurityGroupNotFound {
 		fmt.Println("Creating detached security group")
 		_, err := csvc.CreateStackWithContext(ctx, &cloudformation.CreateStackInput{
 			StackName:    aws.String("detached-security-group"),
-			TemplateBody: aws.String(securityGroupTemplateBodyPath()),
+			TemplateBody: aws.String(string(template)),
 		})
 		if err != nil {
 			return fmt.Errorf("Failed to create security group: %s", err.Error())
 		}
 	} else {
-		fmt.Println("Creating detached security group")
+		fmt.Println("Updating detached security group")
 		_, err := csvc.UpdateStackWithContext(ctx, &cloudformation.UpdateStackInput{
 			StackName:    aws.String("detached-security-group"),
-			TemplateBody: aws.String(securityGroupTemplateBodyPath()),
+			TemplateBody: aws.String(string(template)),
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to create security group: %s", err.Error())
+			if strings.ContainsAny(err.Error(), "No updates are to be performed") {
+				return nil
+			}
+			return fmt.Errorf("Failed to update security group: %s", err.Error())
 		}
 	}
 
