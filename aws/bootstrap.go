@@ -2,12 +2,6 @@ package aws
 
 import (
 	"context"
-	"fmt"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 const (
@@ -19,86 +13,73 @@ echo 'BASE64PUBLICKEY' > ~/.ssh/authorized_keys
 `
 )
 
-type Config struct {
-}
-
 func (provider *Aws) Bootstrap(ctx context.Context) error {
-	csvc := cloudformation.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 
-	fmt.Println("Creating detached security group")
-	createStackOutput, err := csvc.CreateStack(&cloudformation.CreateStackInput{
-		StackName:    "detached-security-group",
-		TemplateBody: securityGroupTemplateBodyPath(),
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to create security group: %s", err.Error())
-	}
+	// svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 
-	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+	// fmt.Println("Copying image with encryption to create an Encrypted EBS Volume")
+	// copyImageOutput, err := svc.CopyImageWithContext(ctx, &ec2.CopyImageInput{
+	// 	SourceImageId: provider.ImageId,
+	// 	SourceRegion:  provider.Region,
+	// 	Encrypted:     true,
+	// 	Name:          "detached-ami",
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("Failed to create encrypted image: %s", err.Error())
+	// }
 
-	fmt.Println("Copying image with encryption to create an Encrypted EBS Volume")
-	copyImageOutput, err := svc.CopyImageWithContext(ctx, &ec2.CopyImageInput{
-		SourceImageId: provider.ImageId,
-		SourceRegion:  provider.Region,
-		Encrypted:     true,
-		Name:          "detached-ami",
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to create encrypted image: %s", err.Error())
-	}
+	// generatedImageId := copyImageOutput.ImageId
+	// fmt.Printf("Image %s created\n", generatedImageId)
 
-	generatedImageId := copyImageOutput.ImageId
-	fmt.Printf("Image %s created\n", generatedImageId)
+	// // https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
+	// // maybe create current user 	user, _ := user.Current()
+	// initScript := ""
 
-	// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
-	// maybe create current user 	user, _ := user.Current()
-	initScript := ""
+	// fmt.Println("Creating dummy instance to spin up volume")
+	// reservation, err := svc.RunInstances(&ec2.RunInstancesInput{
+	// 	ImageId:          copyImageOutput.ImageId,
+	// 	InstanceType:     instanceType,
+	// 	MaxCount:         1,
+	// 	MinCount:         1,
+	// 	SecurityGroupIds: []*string{securityGroupId},
+	// 	UserData:         initScript,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("Failed to launch EC2 instance: %s", err.Error())
+	// }
 
-	fmt.Println("Creating dummy instance to spin up volume")
-	reservation, err := svc.RunInstances(&ec2.RunInstancesInput{
-		ImageId:          copyImageOutput.ImageId,
-		InstanceType:     instanceType,
-		MaxCount:         1,
-		MinCount:         1,
-		SecurityGroupIds: []*string{securityGroupId},
-		UserData:         initScript,
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to launch EC2 instance: %s", err.Error())
-	}
+	// instanceId := reservation.Instances[0].InstanceId
+	// ebs := reservation.Instances[0].BlockDeviceMappings[0].Ebs
 
-	instanceId := reservation.Instances[0].InstanceId
-	ebs := reservation.Instances[0].BlockDeviceMappings[0].Ebs
+	// fmt.Println("Detaching volume from instance")
+	// volumeAttachment, err := svc.DetachVolume(&ec2.DetachVolumeInput{
+	// 	InstanceId: instanceId,
+	// 	VolumeId:   ebs.VolumeId,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("Failed to detach volume: %s", err.Error())
+	// }
 
-	fmt.Println("Detaching volume from instance")
-	volumeAttachment, err := svc.DetachVolume(&ec2.DetachVolumeInput{
-		InstanceId: instanceId,
-		VolumeId:   ebs.VolumeId,
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to detach volume: %s", err.Error())
-	}
+	// fmt.Println("Terminating dummy instance")
+	// _, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
+	// 	InstanceIds: []*string{instanceId},
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("Failed to terminate dummy instance: %s", err.Error())
+	// }
 
-	fmt.Println("Terminating dummy instance")
-	_, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
-		InstanceIds: []*string{instanceId},
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to terminate dummy instance: %s", err.Error())
-	}
+	// // publicIp := reservation.Instances[0].PublicIpAddress
+	// // ebs.SetDeleteOnTermination(false)
 
-	// publicIp := reservation.Instances[0].PublicIpAddress
-	// ebs.SetDeleteOnTermination(false)
-
-	fmt.Println("Modifying volume")
-	_, err = svc.ModifyVolume(&ec2.ModifyVolumeInput{
-		VolumeId:   ebs.VolumeId,
-		VolumeType: "gp2",
-		Size:       10,
-	})
-	if err != nil {
-		return fmt.Errorf("Failed to modify volume: %s", err.Error())
-	}
+	// fmt.Println("Modifying volume")
+	// _, err = svc.ModifyVolume(&ec2.ModifyVolumeInput{
+	// 	VolumeId:   ebs.VolumeId,
+	// 	VolumeType: "gp2",
+	// 	Size:       10,
+	// })
+	// if err != nil {
+	// 	return fmt.Errorf("Failed to modify volume: %s", err.Error())
+	// }
 
 	return nil
 }

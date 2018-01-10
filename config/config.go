@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	CONFIG_FOLDER = ".detached"
-	CONFIG_FILE   = "default"
+	CONFIG_FOLDER = ".detached/default"
+	CONFIG_FILE   = "config"
 )
 
 func Exists() bool {
@@ -21,8 +21,8 @@ func Exists() bool {
 }
 
 func Save(instance interface{}) error {
-	if _, err := os.Stat(absConfigFolder()); os.IsNotExist(err) {
-		err = os.MkdirAll(absConfigFolder(), 0755)
+	if _, err := os.Stat(AbsConfigFolder()); os.IsNotExist(err) {
+		err = os.MkdirAll(AbsConfigFolder(), 0755)
 		if err != nil {
 			return fmt.Errorf("Failed to create ~/.detached folder: %s", err)
 		}
@@ -53,7 +53,7 @@ func Load(c interface{}) error {
 	return nil
 }
 
-func absConfigFolder() string {
+func AbsConfigFolder() string {
 	usr, err := user.Current()
 	if err != nil {
 		log.Fatal(err)
@@ -62,5 +62,5 @@ func absConfigFolder() string {
 }
 
 func absConfigPath() string {
-	return filepath.Join(absConfigFolder(), CONFIG_FILE)
+	return filepath.Join(AbsConfigFolder(), CONFIG_FILE)
 }

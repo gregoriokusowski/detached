@@ -28,7 +28,7 @@ type Aws struct {
 	SshPort      int    `json:"sshPort"`
 }
 
-func Default() *detached.Detachable {
+func Default() *Aws {
 	return &Aws{
 		Provider:     "aws",
 		Region:       "eu-central-1",
@@ -38,6 +38,10 @@ func Default() *detached.Detachable {
 		Username:     "kusowski",
 		SshPort:      22,
 	}
+}
+
+func (_ *Aws) Config(ctx context.Context) error {
+	return nil
 }
 
 func load(ctx context.Context) (*Aws, error) {

@@ -18,6 +18,7 @@ Usage:
 
 The commands are:
 
+		config Creates basic configuration files
         bootstrap   initialize your configuration
         status      check your current configuration and remote setup
         attach      attach a session to your remote machine, creating it if needed
@@ -25,6 +26,12 @@ The commands are:
 Use "detached help [command]" for more information about a command.`
 
 func main() {
+	ctx := context.TODO()
+	fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
+	fmt.Println(aws.Default().GetSecurityGroupId(ctx))
+	fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
+}
+func xmain() {
 	ctx := context.TODO()
 	if len(os.Args) > 1 {
 		command := os.Args[1]

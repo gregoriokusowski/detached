@@ -4,6 +4,7 @@
         "InstanceSecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
+                "GroupName": "detached-security-group",
                 "GroupDescription": "Enable SSH access via port 22 and Mosh connections",
                 "SecurityGroupIngress": [
                     {
