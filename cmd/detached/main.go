@@ -6,6 +6,8 @@ import (
 
 	"context"
 
+	"log"
+
 	"github.com/gregoriokusowski/detached"
 	"github.com/gregoriokusowski/detached/aws"
 )
@@ -25,12 +27,26 @@ The commands are:
 
 Use "detached help [command]" for more information about a command.`
 
-func main() {
+func bootstrap() {
 	ctx := context.TODO()
-	fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
-	fmt.Println(aws.Default().GetSecurityGroupId(ctx))
-	fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
+	// fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
+	// fmt.Println(aws.Default().GetSecurityGroupId(ctx))
+	// fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
+	fmt.Println("Creating Encrypted AMI")
+	imageId, err := aws.Default().CreateEncryptedAMI(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("AMI %s created successfully\n", imageId)
+
+	fmt.Println("Fetching generated Snapshot")
+	snapshotId, err := aws.Default().GetSnapshotId(ctx, imageId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Snapshot %s found for the image %s\n", snapshotId, imageId)
 }
+
 func xmain() {
 	ctx := context.TODO()
 	if len(os.Args) > 1 {
