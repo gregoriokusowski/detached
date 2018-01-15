@@ -2,11 +2,18 @@ package aws
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 const (
 	USERDATA = `
-#! /sh...
+#!/bin/bash
 sudo adduser USERNAME --disabled-password
 sudo su - USERNAME
 echo 'BASE64PUBLICKEY' > ~/.ssh/authorized_keys
@@ -14,72 +21,87 @@ echo 'BASE64PUBLICKEY' > ~/.ssh/authorized_keys
 )
 
 func (provider *Aws) Bootstrap(ctx context.Context) error {
+	fmt.Println("Creating Encrypted AMI")
+	imageId, err := provider.CreateEncryptedAMI(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("AMI %s created successfully\n", imageId)
 
-	// svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+	fmt.Println("Fetching generated Snapshot")
+	snapshotId, err := provider.GetSnapshotId(ctx, imageId)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Snapshot %s found for the image %s\n", snapshotId, imageId)
 
-	// fmt.Println("Copying image with encryption to create an Encrypted EBS Volume")
-	// copyImageOutput, err := svc.CopyImageWithContext(ctx, &ec2.CopyImageInput{
-	// 	SourceImageId: provider.ImageId,
-	// 	SourceRegion:  provider.Region,
-	// 	Encrypted:     true,
-	// 	Name:          "detached-ami",
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("Failed to create encrypted image: %s", err.Error())
-	// }
+	fmt.Println("Creating security group")
+	securityGroupId, err := provider.GetSecurityGroupId(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Security group created successfully")
 
-	// generatedImageId := copyImageOutput.ImageId
-	// fmt.Printf("Image %s created\n", generatedImageId)
-
-	// // https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
-	// // maybe create current user 	user, _ := user.Current()
-	// initScript := ""
-
-	// fmt.Println("Creating dummy instance to spin up volume")
-	// reservation, err := svc.RunInstances(&ec2.RunInstancesInput{
-	// 	ImageId:          copyImageOutput.ImageId,
-	// 	InstanceType:     instanceType,
-	// 	MaxCount:         1,
-	// 	MinCount:         1,
-	// 	SecurityGroupIds: []*string{securityGroupId},
-	// 	UserData:         initScript,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("Failed to launch EC2 instance: %s", err.Error())
-	// }
-
-	// instanceId := reservation.Instances[0].InstanceId
-	// ebs := reservation.Instances[0].BlockDeviceMappings[0].Ebs
-
-	// fmt.Println("Detaching volume from instance")
-	// volumeAttachment, err := svc.DetachVolume(&ec2.DetachVolumeInput{
-	// 	InstanceId: instanceId,
-	// 	VolumeId:   ebs.VolumeId,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("Failed to detach volume: %s", err.Error())
-	// }
-
-	// fmt.Println("Terminating dummy instance")
-	// _, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
-	// 	InstanceIds: []*string{instanceId},
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("Failed to terminate dummy instance: %s", err.Error())
-	// }
-
-	// // publicIp := reservation.Instances[0].PublicIpAddress
-	// // ebs.SetDeleteOnTermination(false)
-
-	// fmt.Println("Modifying volume")
-	// _, err = svc.ModifyVolume(&ec2.ModifyVolumeInput{
-	// 	VolumeId:   ebs.VolumeId,
-	// 	VolumeType: "gp2",
-	// 	Size:       10,
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("Failed to modify volume: %s", err.Error())
-	// }
+	fmt.Println("Spinning up one instance to create and setup the volume")
+	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+	_, err = svc.RunInstances(&ec2.RunInstancesInput{
+		InstanceType:     aws.String("t2.nano"),
+		MaxCount:         aws.Int64(1),
+		MinCount:         aws.Int64(1),
+		SecurityGroupIds: []*string{aws.String(securityGroupId)},
+		ImageId:          aws.String(imageId),
+		// UserData:         initScript,
+		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
+			&ec2.BlockDeviceMapping{
+				DeviceName: aws.String("/dev/xvda"),
+				Ebs: &ec2.EbsBlockDevice{
+					DeleteOnTermination: aws.Bool(false),
+				},
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to launch EC2 instance: %s", err.Error())
+	}
 
 	return nil
+}
+
+func (provider *Aws) CreateEncryptedAMI(ctx context.Context) (string, error) {
+	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+	copyImageOutput, err := svc.CopyImageWithContext(ctx, &ec2.CopyImageInput{
+		Name:          aws.String(fmt.Sprintf("%s detached-copy", provider.ImageId)),
+		Encrypted:     aws.Bool(true),
+		SourceImageId: aws.String(provider.ImageId),
+		SourceRegion:  aws.String(provider.Region),
+	})
+	if err != nil {
+		return "", fmt.Errorf("Failed to copy image: %s", err)
+	}
+
+	return *copyImageOutput.ImageId, nil
+}
+
+func (provider *Aws) GetSnapshotId(ctx context.Context, imageId string) (string, error) {
+	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+
+	for n := 0; n <= 20; n++ {
+		snapshotsOutput, err := svc.DescribeSnapshots(&ec2.DescribeSnapshotsInput{})
+		if err != nil {
+			return "", fmt.Errorf("Failed to retrieve snapshots: %s", err.Error())
+		}
+
+		for _, snapshot := range snapshotsOutput.Snapshots {
+			if strings.Contains(*snapshot.Description, imageId) {
+				fmt.Printf("State: %s", *snapshot.State)
+				if "completed" == *snapshot.State {
+					return *snapshot.SnapshotId, nil
+				}
+			}
+		}
+		fmt.Println("Waiting for snapshots...")
+		time.Sleep(time.Millisecond * 5000)
+	}
+
+	return "", fmt.Errorf("Unable to find snapshot for image with id %s", imageId)
 }
