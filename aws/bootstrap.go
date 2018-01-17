@@ -2,8 +2,9 @@ package aws
 
 import (
 	"context"
+	"encoding/base64"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,36 +12,26 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-const (
-	USERDATA = `
-#!/bin/bash
-sudo adduser USERNAME --disabled-password
-sudo su - USERNAME
-echo 'BASE64PUBLICKEY' > ~/.ssh/authorized_keys
-`
-)
-
 func (provider *Aws) Bootstrap(ctx context.Context) error {
+	fmt.Println("Creating security group")
+	err := provider.UpsertSecurityGroup(ctx)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println("Creating Encrypted AMI")
 	imageId, err := provider.CreateEncryptedAMI(ctx)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("AMI %s created successfully\n", imageId)
+	fmt.Printf("AMI %s created successfully and is available\n", imageId)
 
-	fmt.Println("Fetching generated Snapshot")
-	snapshotId, err := provider.GetSnapshotId(ctx, imageId)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Snapshot %s found for the image %s\n", snapshotId, imageId)
-
-	fmt.Println("Creating security group")
+	fmt.Println("Retrieving security group")
 	securityGroupId, err := provider.GetSecurityGroupId(ctx)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Security group created successfully")
+	fmt.Println("Security group created successfully")
 
 	fmt.Println("Spinning up one instance to create and setup the volume")
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
@@ -50,7 +41,7 @@ func (provider *Aws) Bootstrap(ctx context.Context) error {
 		MinCount:         aws.Int64(1),
 		SecurityGroupIds: []*string{aws.String(securityGroupId)},
 		ImageId:          aws.String(imageId),
-		// UserData:         initScript,
+		UserData:         aws.String(base64.StdEncoding.EncodeToString([]byte(BOOTSTRAP_USERDATA))),
 		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
 			&ec2.BlockDeviceMapping{
 				DeviceName: aws.String("/dev/xvda"),
@@ -59,6 +50,7 @@ func (provider *Aws) Bootstrap(ctx context.Context) error {
 				},
 			},
 		},
+		InstanceInitiatedShutdownBehavior: aws.String("terminate"),
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to launch EC2 instance: %s", err.Error())
@@ -70,38 +62,32 @@ func (provider *Aws) Bootstrap(ctx context.Context) error {
 func (provider *Aws) CreateEncryptedAMI(ctx context.Context) (string, error) {
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 	copyImageOutput, err := svc.CopyImageWithContext(ctx, &ec2.CopyImageInput{
-		Name:          aws.String(fmt.Sprintf("%s detached-copy", provider.ImageId)),
+		Name:          aws.String(fmt.Sprintf("%s detached-copy", provider.SourceImageId)),
 		Encrypted:     aws.Bool(true),
-		SourceImageId: aws.String(provider.ImageId),
+		SourceImageId: aws.String(provider.SourceImageId),
 		SourceRegion:  aws.String(provider.Region),
 	})
 	if err != nil {
 		return "", fmt.Errorf("Failed to copy image: %s", err)
 	}
 
-	return *copyImageOutput.ImageId, nil
-}
-
-func (provider *Aws) GetSnapshotId(ctx context.Context, imageId string) (string, error) {
-	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-
-	for n := 0; n <= 20; n++ {
-		snapshotsOutput, err := svc.DescribeSnapshots(&ec2.DescribeSnapshotsInput{})
+	fmt.Print("Waiting for image (it may take a few minutes) ...")
+	for n := 0; n <= 120; n++ {
+		images, err := svc.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{
+			ImageIds: []*string{copyImageOutput.ImageId},
+		})
 		if err != nil {
-			return "", fmt.Errorf("Failed to retrieve snapshots: %s", err.Error())
+			return "", fmt.Errorf("Failed to retrieve images: %s", err.Error())
 		}
 
-		for _, snapshot := range snapshotsOutput.Snapshots {
-			if strings.Contains(*snapshot.Description, imageId) {
-				fmt.Printf("State: %s", *snapshot.State)
-				if "completed" == *snapshot.State {
-					return *snapshot.SnapshotId, nil
-				}
+		for _, image := range images.Images {
+			fmt.Print(".")
+			if "available" == *image.State {
+				return *copyImageOutput.ImageId, nil
 			}
 		}
-		fmt.Println("Waiting for snapshots...")
 		time.Sleep(time.Millisecond * 5000)
 	}
 
-	return "", fmt.Errorf("Unable to find snapshot for image with id %s", imageId)
+	return "", errors.New("Image was not available")
 }

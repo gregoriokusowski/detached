@@ -6,6 +6,13 @@ import (
 	"os/exec"
 )
 
+// func (provider *Aws) SpinUp(ctx context.Context) {
+// 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+
+// 	svc.RequestSpotInstancesWithContext(ctx, &ec2.RequestSpotInstancesInput{
+
+// 	})
+// }
 func (provider *Aws) Attach(context context.Context) error {
 	cmd := exec.Command("tmux", "a")
 	cmd.Stdout = os.Stdout

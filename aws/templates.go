@@ -1,3 +1,35 @@
+package aws
+
+const (
+	BOOTSTRAP_USERDATA = `
+#!/bin/bash
+adduser USERNAME
+echo "USERNAME ALL=(ALL) ALL" >> /etc/sudoers
+echo "USERNAME ALL=NOPASSWD: ALL" >> /etc/sudoers
+su - USERNAME -c "
+  mkdir ~/.ssh
+  touch ~/.ssh/authorized_keys
+  echo 'PUBLIC_KEY' >> ~/.ssh/authorized_keys
+  chmod 700 ~/.ssh
+  chmod 600 ~/.ssh/authorized_keys
+"
+shutdown -h now
+`
+
+	SPOT_USERDATA = `
+#!/bin/sh
+while ! lsblk /dev/xvdf
+do
+  echo "Running on Spot volume, waiting for EBS attachment"
+  sleep 1
+done
+
+e2label /dev/xvda1 old/
+e2label /dev/xvdf1 /
+shutdown -r now
+`
+
+	CLOUDFORMATION_SECURITY_GROUP = `
 {
     "Description": "Detached Box Security Group",
     "Resources": {
@@ -21,9 +53,14 @@
                     }
                 ],
                 "Tags": [
-                    "detached"
+                    {
+                        "Key" : "source",
+                        "Value" : "detached"
+                    }
                 ]
             }
         }
     }
 }
+`
+)

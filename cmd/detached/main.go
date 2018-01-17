@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"context"
@@ -27,14 +26,14 @@ The commands are:
 Use "detached help [command]" for more information about a command.`
 
 func main() {
-	ctx := context.TODO()
+	// ctx := context.TODO()
 	// fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
 	// fmt.Println(aws.Default().GetSecurityGroupId(ctx))
 	// fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
-	err := aws.Default().Bootstrap(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// err := aws.Default().Bootstrap(ctx)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 }
 
 func xmain() {
