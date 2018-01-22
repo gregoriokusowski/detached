@@ -32,3 +32,34 @@ At first, detached aims to provide information about the requirements (like gett
 Second step will be to provide a skeleton/framework where you can attach your basic data (dotfiles, credentials, etc) and it will bootstrap your environment.
 
 Having that in mind, we can still provide more information about how to use Docker, X-Server, etc. within your setup and how those tools can help you to improve your workflow.
+
+### Usage
+
+Create your default config with: (your config will be available at `~/.detached/default` and you can edit it)
+
+```bash
+detached config
+```
+
+Bootstrap your cloud environment:
+
+```bash
+detached bootstrap
+```
+
+Use it:
+
+```bash
+detached attach
+```
+
+### Providers
+
+Right now detached is supporting only AWS spot instances.
+
+##### AWS
+
+What you need?
+
+* AWS account
+* ...
