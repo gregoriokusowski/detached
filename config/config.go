@@ -21,12 +21,10 @@ func Exists() bool {
 }
 
 func Save(instance interface{}) error {
-	if _, err := os.Stat(AbsConfigFolder()); os.IsNotExist(err) {
-		err = os.MkdirAll(AbsConfigFolder(), 0755)
-		if err != nil {
-			return fmt.Errorf("Failed to create ~/.detached folder: %s", err)
-		}
+	if err := ensureDetachedFolderExists(); err != nil {
+		return err
 	}
+
 	bytes, err := json.MarshalIndent(instance, "", "  ")
 	if err != nil {
 		return fmt.Errorf("Failed to convert config to json: %s", err)
@@ -65,20 +63,34 @@ func absConfigPath() string {
 	return filepath.Join(AbsConfigFolder(), CONFIG_FILE)
 }
 
+func ensureDetachedFolderExists() error {
+	if _, err := os.Stat(AbsConfigFolder()); os.IsNotExist(err) {
+		err = os.MkdirAll(AbsConfigFolder(), 0755)
+		if err != nil {
+			return fmt.Errorf("Failed to create ~/.detached folder: %s", err)
+		}
+	}
+	return nil
+}
+
 // Creates a file with the config file
 func AddConfig(filename, content string) error {
+	if err := ensureDetachedFolderExists(); err != nil {
+		return err
+	}
+
 	err := ioutil.WriteFile(filepath.Join(AbsConfigFolder(), filename), []byte(content), 0755)
 	if err != nil {
-		return fmt.Errorf("Failed to persist %s config: %s", filename, err)
+		return fmt.Errorf("Failed to persist %s config: %s", filename, err.Error())
 	}
 	return nil
 }
 
 // Retrieves a config file content
-func GetConfig(filename) ([]byte, error) {
+func GetConfig(filename string) ([]byte, error) {
 	content, err := ioutil.ReadFile(filepath.Join(AbsConfigFolder(), filename))
 	if err != nil {
-		return "", err
+		return []byte{}, fmt.Errorf("Failed to load config %s: %s", filename, err.Error())
 	}
 	return content, nil
 }

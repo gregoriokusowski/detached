@@ -77,7 +77,13 @@ func (provider *AWS) Config(ctx context.Context) error {
 		return err
 	}
 
-	return config.Save(i)
+	err = config.Save(i)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Config is done. You can check it and run bootstrap when ready!")
+	return nil
 }
 
 // Given the available AWS regions, prompts a selection.
