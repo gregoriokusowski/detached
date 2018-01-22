@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/gregoriokusowski/detached/config"
 )
 
 func (provider *AWS) Bootstrap(ctx context.Context) error {
@@ -33,6 +34,11 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 	}
 	fmt.Println("Security group created successfully")
 
+	bootstrap, err := config.GetConfig("bootstrap")
+	if err != nil {
+		return err
+	}
+
 	fmt.Println("Spinning up one instance to create and setup the volume")
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 	_, err = svc.RunInstances(&ec2.RunInstancesInput{
@@ -41,7 +47,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 		MinCount:         aws.Int64(1),
 		SecurityGroupIds: []*string{aws.String(securityGroupId)},
 		ImageId:          aws.String(imageId),
-		UserData:         aws.String(base64.StdEncoding.EncodeToString([]byte(BOOTSTRAP_USERDATA))),
+		UserData:         aws.String(base64.StdEncoding.EncodeToString(bootstrap)),
 		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
 			&ec2.BlockDeviceMapping{
 				DeviceName: aws.String("/dev/xvda"),

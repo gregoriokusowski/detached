@@ -35,14 +35,31 @@ Having that in mind, we can still provide more information about how to use Dock
 
 ### Usage
 
-Create your default config with:
+Create your default config with: (your config will be available at `~/.detached/default` and you can edit it)
 
 ```bash
-detached init
+detached config
 ```
 
-Spin up your machine and start working:
+Bootstrap your cloud environment:
+
+```bash
+detached bootstrap
+```
+
+Use it:
 
 ```bash
 detached attach
 ```
+
+### Providers
+
+Right now detached is supporting only AWS spot instances.
+
+##### AWS
+
+What you need?
+
+* AWS account
+* ...

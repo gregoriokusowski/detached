@@ -16,11 +16,11 @@ type AWS struct {
 	Provider      string `json:"provider"`
 	Region        string `json:"region"`
 	Zone          string `json:"zone"`
-	SourceImageId string `json:"sourceImageId`
+	SourceImageId string `json:"sourceImageId"`
 	InstanceType  string `json:"instanceType"`
 	Username      string `json:"username"`
 
-	ImageId         string `json:"imageId`
+	ImageId         string `json:"imageId"`
 	StackID         string `json:"stackId"`
 	SecurityGroupID string `json:"securityGroupId"`
 	VolumeID        string `json:"volumeId"`

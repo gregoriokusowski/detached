@@ -65,10 +65,20 @@ func absConfigPath() string {
 	return filepath.Join(AbsConfigFolder(), CONFIG_FILE)
 }
 
+// Creates a file with the config file
 func AddConfig(filename, content string) error {
 	err := ioutil.WriteFile(filepath.Join(AbsConfigFolder(), filename), []byte(content), 0755)
 	if err != nil {
 		return fmt.Errorf("Failed to persist %s config: %s", filename, err)
 	}
 	return nil
+}
+
+// Retrieves a config file content
+func GetConfig(filename) ([]byte, error) {
+	content, err := ioutil.ReadFile(filepath.Join(AbsConfigFolder(), filename))
+	if err != nil {
+		return "", err
+	}
+	return content, nil
 }
