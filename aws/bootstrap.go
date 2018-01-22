@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-func (provider *Aws) Bootstrap(ctx context.Context) error {
+func (provider *AWS) Bootstrap(ctx context.Context) error {
 	fmt.Println("Creating security group")
 	err := provider.UpsertSecurityGroup(ctx)
 	if err != nil {
@@ -59,7 +59,7 @@ func (provider *Aws) Bootstrap(ctx context.Context) error {
 	return nil
 }
 
-func (provider *Aws) CreateEncryptedAMI(ctx context.Context) (string, error) {
+func (provider *AWS) CreateEncryptedAMI(ctx context.Context) (string, error) {
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 	copyImageOutput, err := svc.CopyImageWithContext(ctx, &ec2.CopyImageInput{
 		Name:          aws.String(fmt.Sprintf("%s detached-copy", provider.SourceImageId)),

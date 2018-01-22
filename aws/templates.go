@@ -1,6 +1,9 @@
+// the text templates for shell scripts and cloudformation.
+// they are stored in go so we can ship them with the binary.
 package aws
 
 const (
+	// BOOTSTRAP_USERDATA creates the user in the EBS volume with ssh access
 	BOOTSTRAP_USERDATA = `
 #!/bin/bash
 adduser USERNAME
@@ -16,6 +19,10 @@ su - USERNAME -c "
 shutdown -h now
 `
 
+	// SPOT_USERDATA is the master trick behind detached
+	// It: 1) waits for the EBS volume to be attached
+	//     2) swap it to make it the root volume
+	//     3) reboot (next boot will pick up the new root without user data)
 	SPOT_USERDATA = `
 #!/bin/sh
 while ! lsblk /dev/xvdf
@@ -29,6 +36,9 @@ e2label /dev/xvdf1 /
 shutdown -r now
 `
 
+	// CLOUDFORMATION_SECURITY_GROUP is a basic security group that enables ssh
+	// and mosh connections. The file is created to enable customization.
+	// Ex: ssh port, server port, etc
 	CLOUDFORMATION_SECURITY_GROUP = `
 {
     "Description": "Detached Box Security Group",

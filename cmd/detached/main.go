@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"context"
@@ -18,37 +19,28 @@ Usage:
 
 The commands are:
 
-		config Creates basic configuration files
-        bootstrap   initialize your configuration
-        status      check your current configuration and remote setup
-        attach      attach a session to your remote machine, creating it if needed
+        config      Creates basic configuration files
+        bootstrap   Initialize your configuration
+        status      Check your current configuration and remote setup
+        attach      Attach a session to your remote machine, creating it if needed
 
 Use "detached help [command]" for more information about a command.`
 
 func main() {
-	// ctx := context.TODO()
-	// fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
-	// fmt.Println(aws.Default().GetSecurityGroupId(ctx))
-	// fmt.Println(aws.Default().UpsertSecurityGroup(ctx))
-	// err := aws.Default().Bootstrap(ctx)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-}
-
-func xmain() {
 	ctx := context.TODO()
 	if len(os.Args) > 1 {
 		command := os.Args[1]
-		i, err := instance(ctx)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
 		switch command {
-		case "bootstrap":
-			err := i.Bootstrap(ctx)
+		case "config":
+			i := &aws.AWS{}
+			err := i.Config(ctx)
 			if err != nil {
-				fmt.Println(err.Error())
+				log.Fatal(err)
+			}
+		case "bootstrap":
+			err := instance(ctx).Bootstrap(ctx)
+			if err != nil {
+				log.Fatal(err)
 			}
 		}
 	} else {
@@ -56,6 +48,10 @@ func xmain() {
 	}
 }
 
-func instance(ctx context.Context) (detached.Detachable, error) {
-	return aws.New(ctx)
+func instance(ctx context.Context) detached.Detachable {
+	i, err := aws.New(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return i
 }

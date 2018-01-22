@@ -13,7 +13,7 @@ import (
 
 // 	})
 // }
-func (provider *Aws) Attach(context context.Context) error {
+func (provider *AWS) Attach(context context.Context) error {
 	cmd := exec.Command("tmux", "a")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

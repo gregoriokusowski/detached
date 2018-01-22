@@ -27,7 +27,7 @@ func Save(instance interface{}) error {
 			return fmt.Errorf("Failed to create ~/.detached folder: %s", err)
 		}
 	}
-	bytes, err := json.Marshal(instance)
+	bytes, err := json.MarshalIndent(instance, "", "  ")
 	if err != nil {
 		return fmt.Errorf("Failed to convert config to json: %s", err)
 	}
@@ -63,4 +63,12 @@ func AbsConfigFolder() string {
 
 func absConfigPath() string {
 	return filepath.Join(AbsConfigFolder(), CONFIG_FILE)
+}
+
+func AddConfig(filename, content string) error {
+	err := ioutil.WriteFile(filepath.Join(AbsConfigFolder(), filename), []byte(content), 0755)
+	if err != nil {
+		return fmt.Errorf("Failed to persist %s config: %s", filename, err)
+	}
+	return nil
 }

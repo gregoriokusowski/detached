@@ -21,7 +21,7 @@ const (
 	SECURITY_GROUP_CONFIG_FILE = "security_group.json"
 )
 
-func (provider *Aws) GetSecurityGroupId(ctx context.Context) (string, error) {
+func (provider *AWS) GetSecurityGroupId(ctx context.Context) (string, error) {
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 	describeSecurityGroupsOutput, err := svc.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{
 		GroupNames: []*string{aws.String("detached-security-group")},
@@ -39,7 +39,7 @@ func (provider *Aws) GetSecurityGroupId(ctx context.Context) (string, error) {
 	return "", SecurityGroupNotFound
 }
 
-func (provider *Aws) UpsertSecurityGroup(ctx context.Context) error {
+func (provider *AWS) UpsertSecurityGroup(ctx context.Context) error {
 	csvc := cloudformation.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 
 	template, err := ioutil.ReadFile(securityGroupTemplateBodyPath())

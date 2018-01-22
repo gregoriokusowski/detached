@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gregoriokusowski/detached"
 	"github.com/gregoriokusowski/detached/config"
@@ -11,7 +12,7 @@ func New(ctx context.Context) (detached.Detachable, error) {
 	return load(ctx)
 }
 
-type Aws struct {
+type AWS struct {
 	Provider      string `json:"provider"`
 	Region        string `json:"region"`
 	Zone          string `json:"zone"`
@@ -25,8 +26,8 @@ type Aws struct {
 	VolumeID        string `json:"volumeId"`
 }
 
-func load(ctx context.Context) (*Aws, error) {
-	var instance *Aws
+func load(ctx context.Context) (*AWS, error) {
+	var instance *AWS
 	if config.Exists() {
 		err := config.Load(*instance)
 		if err != nil {
@@ -34,14 +35,5 @@ func load(ctx context.Context) (*Aws, error) {
 		}
 		return instance, nil
 	}
-	instance, err := buildInstance(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	err = config.Save(instance)
-	if err != nil {
-		return nil, err
-	}
-	return instance, nil
+	return nil, errors.New("No config found")
 }
