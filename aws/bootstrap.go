@@ -14,11 +14,12 @@ import (
 )
 
 func (provider *AWS) Bootstrap(ctx context.Context) error {
-	fmt.Println("Creating security group")
-	err := provider.UpsertSecurityGroup(ctx)
+	fmt.Println("Creating security group cloudformation stack")
+	stackID, err := provider.CreateSecurityGroupStack(ctx)
 	if err != nil {
 		return err
 	}
+	fmt.Println("Security group stack created successfully")
 
 	fmt.Println("Creating Encrypted AMI")
 	imageId, err := provider.CreateEncryptedAMI(ctx)
@@ -32,7 +33,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Security group created successfully")
+	fmt.Println("Security group retrieved successfully")
 
 	bootstrap, err := config.GetConfig("bootstrap")
 	if err != nil {
@@ -57,12 +58,63 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 			},
 		},
 		InstanceInitiatedShutdownBehavior: aws.String("terminate"),
+		TagSpecifications: []*ec2.TagSpecification{
+			&ec2.TagSpecification{
+				ResourceType: aws.String("instance"),
+				Tags: []*ec2.Tag{
+					&ec2.Tag{
+						Key:   aws.String("source"),
+						Value: aws.String("detached"),
+					},
+				},
+			},
+			&ec2.TagSpecification{
+				ResourceType: aws.String("volume"),
+				Tags: []*ec2.Tag{
+					&ec2.Tag{
+						Key:   aws.String("source"),
+						Value: aws.String("detached"),
+					},
+				},
+			},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to launch EC2 instance: %s", err.Error())
 	}
 
-	return nil
+	fmt.Println("Retrieving volume ID")
+	var volumeID string
+	for n := 0; n <= 120; n++ {
+		volumeOutput, err := svc.DescribeVolumesWithContext(ctx, &ec2.DescribeVolumesInput{
+			Filters: []*ec2.Filter{
+				&ec2.Filter{
+					Name:   aws.String("tag:source"),
+					Values: []*string{aws.String("detached")},
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to retrieve volume information: %s", err.Error())
+		}
+		if len(volumeOutput.Volumes) > 0 {
+			volumeID = *volumeOutput.Volumes[0].VolumeId
+			break
+		}
+		time.Sleep(time.Millisecond * 500)
+	}
+	if volumeID == "" {
+		return fmt.Errorf("Volume ID was not found")
+	}
+
+	fmt.Println("Saving config.")
+	provider.ImageId = imageId
+	provider.SecurityGroupID = securityGroupId
+	provider.StackID = stackID
+	provider.VolumeID = volumeID
+	err = config.Save(provider)
+
+	return err
 }
 
 func (provider *AWS) CreateEncryptedAMI(ctx context.Context) (string, error) {

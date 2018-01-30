@@ -8,6 +8,10 @@ import (
 	"github.com/gregoriokusowski/detached/config"
 )
 
+const (
+	SECURITY_GROUP_CONFIG_FILE = "security_group.json"
+)
+
 func New(ctx context.Context) (detached.Detachable, error) {
 	return load(ctx)
 }
@@ -27,13 +31,13 @@ type AWS struct {
 }
 
 func load(ctx context.Context) (*AWS, error) {
-	var instance *AWS
+	var instance AWS
 	if config.Exists() {
-		err := config.Load(*instance)
+		err := config.Load(&instance)
 		if err != nil {
 			return nil, err
 		}
-		return instance, nil
+		return &instance, nil
 	}
 	return nil, errors.New("No config found")
 }

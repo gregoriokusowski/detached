@@ -38,7 +38,7 @@ shutdown -r now`
 	CLOUDFORMATION_SECURITY_GROUP = `{
     "Description": "Detached Box Security Group",
     "Resources": {
-        "InstanceSecurityGroup": {
+        "DetachedSecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
                 "GroupName": "detached-security-group",
@@ -64,6 +64,12 @@ shutdown -r now`
                     }
                 ]
             }
+        }
+    },
+    "Outputs": {
+        "SecurityGroupId": {
+            "Description": "Security group ID",
+            "Value": { "Ref": "DetachedSecurityGroup" }
         }
     }
 }`
