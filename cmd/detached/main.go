@@ -42,6 +42,11 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
+		case "attach":
+			err := instance(ctx).Attach(ctx)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	} else {
 		fmt.Println(longDesc)

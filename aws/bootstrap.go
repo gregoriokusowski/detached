@@ -84,7 +84,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 	}
 
 	fmt.Println("Retrieving volume ID")
-	var volumeID string
+	var volumeID, snapshotID string
 	for n := 0; n <= 120; n++ {
 		volumeOutput, err := svc.DescribeVolumesWithContext(ctx, &ec2.DescribeVolumesInput{
 			Filters: []*ec2.Filter{
@@ -98,7 +98,9 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 			return fmt.Errorf("Failed to retrieve volume information: %s", err.Error())
 		}
 		if len(volumeOutput.Volumes) > 0 {
-			volumeID = *volumeOutput.Volumes[0].VolumeId
+			volume := volumeOutput.Volumes[0]
+			volumeID = *volume.VolumeId
+			snapshotID = *volume.SnapshotId
 			break
 		}
 		time.Sleep(time.Millisecond * 500)
@@ -112,6 +114,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 	provider.SecurityGroupID = securityGroupId
 	provider.StackID = stackID
 	provider.VolumeID = volumeID
+	provider.SnapshotID = snapshotID
 	err = config.Save(provider)
 
 	return err

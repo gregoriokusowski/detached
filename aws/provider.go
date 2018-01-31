@@ -28,6 +28,7 @@ type AWS struct {
 	StackID         string `json:"stackId"`
 	SecurityGroupID string `json:"securityGroupId"`
 	VolumeID        string `json:"volumeId"`
+	SnapshotID      string `json:"snapshotId"`
 }
 
 func load(ctx context.Context) (*AWS, error) {
