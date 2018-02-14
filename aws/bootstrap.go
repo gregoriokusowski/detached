@@ -66,6 +66,10 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 						Key:   aws.String("source"),
 						Value: aws.String("detached"),
 					},
+					&ec2.Tag{
+						Key:   aws.String("detached-id"),
+						Value: aws.String(provider.ID),
+					},
 				},
 			},
 			&ec2.TagSpecification{
@@ -74,6 +78,10 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 					&ec2.Tag{
 						Key:   aws.String("source"),
 						Value: aws.String("detached"),
+					},
+					&ec2.Tag{
+						Key:   aws.String("detached-id"),
+						Value: aws.String(provider.ID),
 					},
 				},
 			},
@@ -89,8 +97,8 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 		volumeOutput, err := svc.DescribeVolumesWithContext(ctx, &ec2.DescribeVolumesInput{
 			Filters: []*ec2.Filter{
 				&ec2.Filter{
-					Name:   aws.String("tag:source"),
-					Values: []*string{aws.String("detached")},
+					Name:   aws.String("tag:detached-id"),
+					Values: []*string{aws.String(provider.ID)},
 				},
 			},
 		})
@@ -123,7 +131,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 func (provider *AWS) CreateEncryptedAMI(ctx context.Context) (string, error) {
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 	copyImageOutput, err := svc.CopyImageWithContext(ctx, &ec2.CopyImageInput{
-		Name:          aws.String(fmt.Sprintf("%s detached-copy", provider.SourceImageId)),
+		Name:          aws.String(fmt.Sprintf("detached-%s", provider.ID)),
 		Encrypted:     aws.Bool(true),
 		SourceImageId: aws.String(provider.SourceImageId),
 		SourceRegion:  aws.String(provider.Region),

@@ -20,7 +20,7 @@ var SecurityGroupNotFound = errors.New("Security group not found")
 func (provider *AWS) GetSecurityGroupId(ctx context.Context) (string, error) {
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
 	describeSecurityGroupsOutput, err := svc.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{
-		GroupNames: []*string{aws.String("detached-security-group")},
+		GroupNames: []*string{aws.String(fmt.Sprintf("detached-security-group-%s", provider.ID))},
 	})
 	if err != nil {
 		if strings.ContainsAny(err.Error(), "InvalidGroup.NotFound") {
@@ -45,7 +45,7 @@ func (provider *AWS) CreateSecurityGroupStack(ctx context.Context) (string, erro
 
 	fmt.Println("Creating detached security group")
 	output, err := csvc.CreateStackWithContext(ctx, &cloudformation.CreateStackInput{
-		StackName:    aws.String("detached-security-group"),
+		StackName:    aws.String(fmt.Sprintf("detached-security-group-%s", provider.ID)),
 		TemplateBody: aws.String(string(template)),
 	})
 	if err != nil {

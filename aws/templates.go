@@ -36,12 +36,12 @@ shutdown -r now`
 	// and mosh connections. The file is created to enable customization.
 	// Ex: ssh port, server port, etc
 	CLOUDFORMATION_SECURITY_GROUP = `{
-    "Description": "Detached Box Security Group",
+    "Description": "Detached Security Group - DETACHED_ID",
     "Resources": {
         "DetachedSecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
-                "GroupName": "detached-security-group",
+                "GroupName": "detached-security-group-DETACHED_ID",
                 "GroupDescription": "Enable SSH access via port 22 and Mosh connections",
                 "SecurityGroupIngress": [
                     {

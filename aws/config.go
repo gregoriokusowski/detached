@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gregoriokusowski/detached/config"
+	uuid "github.com/satori/go.uuid"
 	survey "gopkg.in/AlecAivazis/survey.v1"
 )
 
@@ -24,6 +25,12 @@ const (
 
 // Config prompts for user input and generates the base files for AWS.
 func (provider *AWS) Config(ctx context.Context) error {
+	uuid, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
+	id := uuid.String()
+
 	region := getRegion()
 
 	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(region)})
@@ -46,6 +53,7 @@ func (provider *AWS) Config(ctx context.Context) error {
 	}
 
 	i := &AWS{
+		ID:            id,
 		Provider:      "aws",
 		Region:        region,
 		Zone:          zone,
@@ -72,7 +80,9 @@ func (provider *AWS) Config(ctx context.Context) error {
 		return err
 	}
 
-	err = config.AddConfig("security_group.json", CLOUDFORMATION_SECURITY_GROUP)
+	cf := CLOUDFORMATION_SECURITY_GROUP
+	cf = strings.Replace(cf, "DETACHED_ID", id, -1)
+	err = config.AddConfig("security_group.json", cf)
 	if err != nil {
 		return err
 	}

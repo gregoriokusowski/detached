@@ -17,6 +17,7 @@ func New(ctx context.Context) (detached.Detachable, error) {
 }
 
 type AWS struct {
+	ID            string `json:"id"`
 	Provider      string `json:"provider"`
 	Region        string `json:"region"`
 	Zone          string `json:"zone"`
