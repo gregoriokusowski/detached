@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -24,6 +26,7 @@ func (provider *AWS) Attach(ctx context.Context) error {
 	reqOutput, err := svc.RequestSpotInstancesWithContext(ctx, &ec2.RequestSpotInstancesInput{
 		SpotPrice:     aws.String("0.05"),
 		InstanceCount: aws.Int64(1),
+		ClientToken:   aws.String(provider.ID),
 		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
 			ImageId:          aws.String(provider.ImageId),
 			InstanceType:     aws.String(provider.InstanceType),
@@ -65,20 +68,22 @@ func (provider *AWS) Attach(ctx context.Context) error {
 		return fmt.Errorf("Spot instance request failed. State was %s", state)
 	}
 
-	var instanceID string
+	var instanceID, publicDNSName string
 	for n := 0; n <= 120; n++ {
-		instanceStatusOutput, err := svc.DescribeInstanceStatus(&ec2.DescribeInstanceStatusInput{
+		describeInstancesOutput, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
 			InstanceIds: []*string{spotRequest.InstanceId},
 		})
 		if err != nil {
 			return fmt.Errorf("Failed to describe instance: %s", err.Error())
 		}
-		if len(instanceStatusOutput.InstanceStatuses) == 0 {
+
+		if len(describeInstancesOutput.Reservations) == 0 || len(describeInstancesOutput.Reservations[0].Instances) == 0 {
 			time.Sleep(time.Millisecond * 5000)
 			continue
 		}
 
-		code := *instanceStatusOutput.InstanceStatuses[0].InstanceState.Code
+		instance := describeInstancesOutput.Reservations[0].Instances[0]
+		code := *instance.State.Code
 		if code == 0 {
 			time.Sleep(time.Millisecond * 5000)
 			continue
@@ -86,7 +91,8 @@ func (provider *AWS) Attach(ctx context.Context) error {
 		if code != 16 {
 			return fmt.Errorf("Instance is not pending nor available")
 		}
-		instanceID = *instanceStatusOutput.InstanceStatuses[0].InstanceId
+		instanceID = *instance.InstanceId
+		publicDNSName = *instance.PublicDnsName
 		break
 	}
 
@@ -99,12 +105,27 @@ func (provider *AWS) Attach(ctx context.Context) error {
 		return fmt.Errorf("Failed to attach volume: %s", err.Error())
 	}
 	fmt.Println("Volume attached. Waiting for disk relabeling and reboot")
+	time.Sleep(time.Millisecond * 5000)
 
-	// cmd := exec.Command("tmux", "a")
-	// cmd.Stdout = os.Stdout
-	// cmd.Stderr = os.Stderr
-	// cmd.Stdin = os.Stdin
+	fmt.Print("Trying to connect...")
+	for {
+		cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", fmt.Sprintf("%s@%s", provider.Username, publicDNSName), "exit")
+		err := cmd.Run()
+		if err == nil {
+			fmt.Println("\nConnection is ready.")
+			break
+		}
+		time.Sleep(time.Millisecond * 1000)
+		fmt.Print(".")
+	}
 
-	// cmd.Run()
+	cmd := exec.Command("ssh", "-p", "1234", "kusowski@localhost")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Run()
+
+	fmt.Printf("Finishing connection to %s@%s\n", provider.Username, publicDNSName)
+
 	return nil
 }

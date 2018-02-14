@@ -25,11 +25,7 @@ const (
 
 // Config prompts for user input and generates the base files for AWS.
 func (provider *AWS) Config(ctx context.Context) error {
-	uuid, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
-	id := uuid.String()
+	id := uuid.NewV4().String()
 
 	region := getRegion()
 
