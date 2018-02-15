@@ -49,6 +49,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 		SecurityGroupIds: []*string{aws.String(securityGroupId)},
 		ImageId:          aws.String(imageId),
 		UserData:         aws.String(base64.StdEncoding.EncodeToString(bootstrap)),
+		InstanceInitiatedShutdownBehavior: aws.String("terminate"),
 		BlockDeviceMappings: []*ec2.BlockDeviceMapping{
 			&ec2.BlockDeviceMapping{
 				DeviceName: aws.String("/dev/xvda"),
@@ -57,7 +58,9 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 				},
 			},
 		},
-		InstanceInitiatedShutdownBehavior: aws.String("terminate"),
+		Placement: &ec2.Placement{
+			AvailabilityZone: aws.String(provider.Zone),
+		},
 		TagSpecifications: []*ec2.TagSpecification{
 			&ec2.TagSpecification{
 				ResourceType: aws.String("instance"),

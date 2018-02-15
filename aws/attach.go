@@ -89,7 +89,7 @@ func (provider *AWS) Attach(ctx context.Context) error {
 			continue
 		}
 		if code != 16 {
-			return fmt.Errorf("Instance is not pending nor available")
+			return fmt.Errorf("Instance is not pending nor available - got %s", *instance.State.Name)
 		}
 		instanceID = *instance.InstanceId
 		publicDNSName = *instance.PublicDnsName
@@ -108,8 +108,9 @@ func (provider *AWS) Attach(ctx context.Context) error {
 	time.Sleep(time.Millisecond * 5000)
 
 	fmt.Print("Trying to connect...")
+	userAndHost := fmt.Sprintf("%s@%s", provider.Username, publicDNSName)
 	for {
-		cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", fmt.Sprintf("%s@%s", provider.Username, publicDNSName), "exit")
+		cmd := exec.Command("ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", userAndHost, "exit")
 		err := cmd.Run()
 		if err == nil {
 			fmt.Println("\nConnection is ready.")
@@ -119,7 +120,7 @@ func (provider *AWS) Attach(ctx context.Context) error {
 		fmt.Print(".")
 	}
 
-	cmd := exec.Command("ssh", "-p", "1234", "kusowski@localhost")
+	cmd := exec.Command("ssh", userAndHost)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
