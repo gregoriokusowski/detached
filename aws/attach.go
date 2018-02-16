@@ -9,21 +9,18 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gregoriokusowski/detached/config"
 )
 
 func (provider *AWS) Attach(ctx context.Context) error {
-	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-
 	spotUserData, err := config.GetConfig("spot")
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("Requesting spot instance")
-	reqOutput, err := svc.RequestSpotInstancesWithContext(ctx, &ec2.RequestSpotInstancesInput{
+	reqOutput, err := provider.ec2().RequestSpotInstancesWithContext(ctx, &ec2.RequestSpotInstancesInput{
 		SpotPrice:     aws.String("0.05"),
 		InstanceCount: aws.Int64(1),
 		ClientToken:   aws.String(provider.ID),
@@ -55,7 +52,7 @@ func (provider *AWS) Attach(ctx context.Context) error {
 	spotRequestID := *reqOutput.SpotInstanceRequests[0].SpotInstanceRequestId
 
 	fmt.Println("Waiting request to be fulfilled")
-	instanceRequestOutput, err := svc.DescribeSpotInstanceRequestsWithContext(ctx, &ec2.DescribeSpotInstanceRequestsInput{
+	instanceRequestOutput, err := provider.ec2().DescribeSpotInstanceRequestsWithContext(ctx, &ec2.DescribeSpotInstanceRequestsInput{
 		SpotInstanceRequestIds: []*string{aws.String(spotRequestID)},
 	})
 	if err != nil {
@@ -70,7 +67,7 @@ func (provider *AWS) Attach(ctx context.Context) error {
 
 	var instanceID, publicDNSName string
 	for n := 0; n <= 120; n++ {
-		describeInstancesOutput, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		describeInstancesOutput, err := provider.ec2().DescribeInstances(&ec2.DescribeInstancesInput{
 			InstanceIds: []*string{spotRequest.InstanceId},
 		})
 		if err != nil {
@@ -96,7 +93,7 @@ func (provider *AWS) Attach(ctx context.Context) error {
 		break
 	}
 
-	_, err = svc.AttachVolumeWithContext(ctx, &ec2.AttachVolumeInput{
+	_, err = provider.ec2().AttachVolumeWithContext(ctx, &ec2.AttachVolumeInput{
 		InstanceId: aws.String(instanceID),
 		VolumeId:   aws.String(provider.VolumeID),
 		Device:     aws.String("/dev/xvdf"),

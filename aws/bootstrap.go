@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gregoriokusowski/detached/config"
 )
@@ -41,8 +40,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 	}
 
 	fmt.Println("Spinning up one instance to create and setup the volume")
-	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-	_, err = svc.RunInstances(&ec2.RunInstancesInput{
+	_, err = provider.ec2().RunInstances(&ec2.RunInstancesInput{
 		InstanceType:     aws.String("t2.nano"),
 		MaxCount:         aws.Int64(1),
 		MinCount:         aws.Int64(1),
@@ -97,7 +95,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 	fmt.Println("Retrieving volume ID")
 	var volumeID, snapshotID string
 	for n := 0; n <= 120; n++ {
-		volumeOutput, err := svc.DescribeVolumesWithContext(ctx, &ec2.DescribeVolumesInput{
+		volumeOutput, err := provider.ec2().DescribeVolumesWithContext(ctx, &ec2.DescribeVolumesInput{
 			Filters: []*ec2.Filter{
 				&ec2.Filter{
 					Name:   aws.String("tag:detached-id"),
@@ -132,8 +130,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 }
 
 func (provider *AWS) CreateEncryptedAMI(ctx context.Context) (string, error) {
-	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-	copyImageOutput, err := svc.CopyImageWithContext(ctx, &ec2.CopyImageInput{
+	copyImageOutput, err := provider.ec2().CopyImageWithContext(ctx, &ec2.CopyImageInput{
 		Name:          aws.String(fmt.Sprintf("detached-%s", provider.ID)),
 		Encrypted:     aws.Bool(true),
 		SourceImageId: aws.String(provider.SourceImageId),
@@ -145,7 +142,7 @@ func (provider *AWS) CreateEncryptedAMI(ctx context.Context) (string, error) {
 
 	fmt.Print("Waiting for image (it may take a few minutes) ...")
 	for n := 0; n <= 120; n++ {
-		images, err := svc.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{
+		images, err := provider.ec2().DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{
 			ImageIds: []*string{copyImageOutput.ImageId},
 		})
 		if err != nil {

@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gregoriokusowski/detached/config"
@@ -18,8 +17,7 @@ import (
 var SecurityGroupNotFound = errors.New("Security group not found")
 
 func (provider *AWS) GetSecurityGroupId(ctx context.Context) (string, error) {
-	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-	describeSecurityGroupsOutput, err := svc.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{
+	describeSecurityGroupsOutput, err := provider.ec2().DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{
 		GroupNames: []*string{aws.String(fmt.Sprintf("detached-security-group-%s", provider.ID))},
 	})
 	if err != nil {
@@ -36,15 +34,13 @@ func (provider *AWS) GetSecurityGroupId(ctx context.Context) (string, error) {
 }
 
 func (provider *AWS) CreateSecurityGroupStack(ctx context.Context) (string, error) {
-	csvc := cloudformation.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-
 	template, err := ioutil.ReadFile(securityGroupTemplateBodyPath())
 	if err != nil {
 		return "", err
 	}
 
 	fmt.Println("Creating detached security group")
-	output, err := csvc.CreateStackWithContext(ctx, &cloudformation.CreateStackInput{
+	output, err := provider.cf().CreateStackWithContext(ctx, &cloudformation.CreateStackInput{
 		StackName:    aws.String(fmt.Sprintf("detached-security-group-%s", provider.ID)),
 		TemplateBody: aws.String(string(template)),
 	})
@@ -56,15 +52,13 @@ func (provider *AWS) CreateSecurityGroupStack(ctx context.Context) (string, erro
 }
 
 func (provider *AWS) UpdateSecurityGroup(ctx context.Context) error {
-	csvc := cloudformation.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
-
 	template, err := ioutil.ReadFile(securityGroupTemplateBodyPath())
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("Updating detached security group")
-	_, err = csvc.UpdateStackWithContext(ctx, &cloudformation.UpdateStackInput{
+	_, err = provider.cf().UpdateStackWithContext(ctx, &cloudformation.UpdateStackInput{
 		StackName:    aws.String("detached-security-group"),
 		TemplateBody: aws.String(string(template)),
 	})

@@ -10,9 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gregoriokusowski/detached/config"
 	uuid "github.com/satori/go.uuid"
@@ -29,21 +27,19 @@ func (provider *AWS) Config(ctx context.Context) error {
 
 	region := getRegion()
 
-	svc := ec2.New(session.New(), &aws.Config{Region: aws.String(region)})
-
-	zone, err := getZone(ctx, svc)
+	zone, err := provider.getZone(ctx)
 	if err != nil {
 		return err
 	}
 
 	username := getUsername()
 
-	sourceImageId, err := getSourceImageId(ctx, svc)
+	sourceImageId, err := provider.getSourceImageId(ctx)
 	if err != nil {
 		return err
 	}
 
-	instanceType, err := getInstanceType(ctx, svc)
+	instanceType, err := provider.getInstanceType(ctx)
 	if err != nil {
 		return err
 	}
@@ -112,8 +108,8 @@ func getRegion() string {
 }
 
 // Based on the selected region, prompts for a region.
-func getZone(ctx context.Context, svc *ec2.EC2) (string, error) {
-	zones, err := svc.DescribeAvailabilityZonesWithContext(ctx, &ec2.DescribeAvailabilityZonesInput{})
+func (provider *AWS) getZone(ctx context.Context) (string, error) {
+	zones, err := provider.ec2().DescribeAvailabilityZonesWithContext(ctx, &ec2.DescribeAvailabilityZonesInput{})
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Failed to retrieve availability zones: %s", err))
 	}
@@ -154,13 +150,13 @@ func getUsername() string {
 // getSourceImageId currently returns Amazon Linux AMI 2017.09.1.20180115 x86_64 HVM GP2
 // This is because Detached only supports amazon linux right now
 // TODO: Enable image selection.
-func getSourceImageId(ctx context.Context, svc *ec2.EC2) (string, error) {
+func (_ *AWS) getSourceImageId(_ context.Context) (string, error) {
 	return "ami-5652ce39", nil
 }
 
 // Should Prompt for the desired instance type.
 // TODO: Check if we should enable selection/overwrite during `detached attach`
-func getInstanceType(ctx context.Context, svc *ec2.EC2) (string, error) {
+func (_ *AWS) getInstanceType(_ context.Context) (string, error) {
 	return "t2.micro", nil
 }
 

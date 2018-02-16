@@ -3,7 +3,12 @@ package aws
 import (
 	"context"
 	"errors"
+	"log"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gregoriokusowski/detached"
 	"github.com/gregoriokusowski/detached/config"
 )
@@ -30,6 +35,9 @@ type AWS struct {
 	SecurityGroupID string `json:"securityGroupId"`
 	VolumeID        string `json:"volumeId"`
 	SnapshotID      string `json:"snapshotId"`
+
+	_ec2 *ec2.EC2                       `json:"-"`
+	_cf  *cloudformation.CloudFormation `json:"-"`
 }
 
 func load(ctx context.Context) (*AWS, error) {
@@ -42,4 +50,24 @@ func load(ctx context.Context) (*AWS, error) {
 		return &instance, nil
 	}
 	return nil, errors.New("No config found")
+}
+
+func (provider *AWS) ec2() *ec2.EC2 {
+	if provider.ec2 == nil {
+		if provider.Region == "" {
+			log.Fatal("Region is not set yet, please configure your environment first. (detached config)")
+		}
+		provider._ec2 = ec2.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+	}
+	return provider._ec2
+}
+
+func (provider *AWS) cf() *cloudformation.CloudFormation {
+	if provider.ec2 == nil {
+		if provider.Region == "" {
+			log.Fatal("Region is not set yet, please configure your environment first. (detached config)")
+		}
+		provider._cf = cloudformation.New(session.New(), &aws.Config{Region: aws.String(provider.Region)})
+	}
+	return provider._cf
 }
