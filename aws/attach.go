@@ -23,7 +23,6 @@ func (provider *AWS) Attach(ctx context.Context) error {
 	reqOutput, err := provider.ec2().RequestSpotInstancesWithContext(ctx, &ec2.RequestSpotInstancesInput{
 		SpotPrice:     aws.String("0.05"),
 		InstanceCount: aws.Int64(1),
-		ClientToken:   aws.String(provider.ID),
 		LaunchSpecification: &ec2.RequestSpotLaunchSpecification{
 			ImageId:          aws.String(provider.ImageId),
 			InstanceType:     aws.String(provider.InstanceType),
@@ -52,6 +51,8 @@ func (provider *AWS) Attach(ctx context.Context) error {
 	spotRequestID := *reqOutput.SpotInstanceRequests[0].SpotInstanceRequestId
 
 	fmt.Println("Waiting request to be fulfilled")
+	time.Sleep(time.Millisecond * 5000)
+
 	instanceRequestOutput, err := provider.ec2().DescribeSpotInstanceRequestsWithContext(ctx, &ec2.DescribeSpotInstanceRequestsInput{
 		SpotInstanceRequestIds: []*string{aws.String(spotRequestID)},
 	})

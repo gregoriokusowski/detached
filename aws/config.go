@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/gregoriokusowski/detached/config"
@@ -25,7 +26,7 @@ const (
 func (provider *AWS) Config(ctx context.Context) error {
 	id := uuid.NewV4().String()
 
-	region := getRegion()
+	provider.Region = getRegion()
 
 	zone, err := provider.getZone(ctx)
 	if err != nil {
@@ -47,7 +48,7 @@ func (provider *AWS) Config(ctx context.Context) error {
 	i := &AWS{
 		ID:            id,
 		Provider:      "aws",
-		Region:        region,
+		Region:        provider.Region,
 		Zone:          zone,
 		SourceImageId: sourceImageId,
 		InstanceType:  instanceType,
@@ -150,8 +151,26 @@ func getUsername() string {
 // getSourceImageId currently returns Amazon Linux AMI 2017.09.1.20180115 x86_64 HVM GP2
 // This is because Detached only supports amazon linux right now
 // TODO: Enable image selection.
-func (_ *AWS) getSourceImageId(_ context.Context) (string, error) {
-	return "ami-5652ce39", nil
+func (provider *AWS) getSourceImageId(ctx context.Context) (string, error) {
+	availableImages, err := provider.ec2().DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name:   aws.String("name"),
+				Values: []*string{aws.String("amzn-ami-hvm-2017.09.1.20180115-x86_64-gp2")},
+			},
+			&ec2.Filter{
+				Name:   aws.String("owner-alias"),
+				Values: []*string{aws.String("amazon")},
+			},
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(availableImages.Images) == 0 {
+		return "", fmt.Errorf("Unable to find image")
+	}
+	return *availableImages.Images[0].ImageId, nil
 }
 
 // Should Prompt for the desired instance type.

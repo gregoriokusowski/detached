@@ -53,7 +53,7 @@ func load(ctx context.Context) (*AWS, error) {
 }
 
 func (provider *AWS) ec2() *ec2.EC2 {
-	if provider.ec2 == nil {
+	if provider._ec2 == nil {
 		if provider.Region == "" {
 			log.Fatal("Region is not set yet, please configure your environment first. (detached config)")
 		}
@@ -63,7 +63,7 @@ func (provider *AWS) ec2() *ec2.EC2 {
 }
 
 func (provider *AWS) cf() *cloudformation.CloudFormation {
-	if provider.ec2 == nil {
+	if provider._cf == nil {
 		if provider.Region == "" {
 			log.Fatal("Region is not set yet, please configure your environment first. (detached config)")
 		}
