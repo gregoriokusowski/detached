@@ -52,6 +52,7 @@ func (provider *AWS) Bootstrap(ctx context.Context) error {
 			&ec2.BlockDeviceMapping{
 				DeviceName: aws.String("/dev/xvda"),
 				Ebs: &ec2.EbsBlockDevice{
+					VolumeSize:          aws.Int64(100),
 					DeleteOnTermination: aws.Bool(false),
 				},
 			},
