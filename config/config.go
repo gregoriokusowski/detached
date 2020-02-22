@@ -75,10 +75,10 @@ func AddConfig(filename, content string) error {
 }
 
 // Retrieves a config file content
-func GetConfig(filename) ([]byte, error) {
+func GetConfig(filename string) ([]byte, error) {
 	content, err := ioutil.ReadFile(filepath.Join(AbsConfigFolder(), filename))
 	if err != nil {
-		return "", err
+		return []byte{}, err
 	}
 	return content, nil
 }
